@@ -1,0 +1,102 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+
+WORKFLOWS_DIR=".github/workflows"
+CAPROVER_WORKFLOW="${WORKFLOWS_DIR}/caprover_deployment.yaml"
+MANUAL_WORKFLOW="${WORKFLOWS_DIR}/manual_caprover_deployment.yaml"
+
+if [[ ! -d ".git" ]]; then
+	echo "Error: run this script from the root of a git repository." >&2
+	exit 1
+fi
+
+REPO_NAME=$(basename "$PWD")
+
+echo "Setting up GitHub Actions workflows for: ${REPO_NAME}"
+echo "Target directory: ${PWD}/${WORKFLOWS_DIR}"
+
+mkdir -p "${WORKFLOWS_DIR}"
+
+write_file() {
+	local target_path="$1"
+	local content="$2"
+
+	# if [[ -f "${target_path}" ]]; then
+	# 	echo "Skipping ${target_path} (already exists)"
+	# 	return
+	# fi
+
+	printf "%s\n" "${content}" >"${target_path}"
+	echo "Created ${target_path}"
+}
+
+write_file "${CAPROVER_WORKFLOW}" \
+	"name: CapRover Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Git branch to deploy
+        required: true
+        type: choice
+        options: [development, production]
+      server:
+        description: Server to deploy to
+        required: true
+        type: choice
+        options: [frginbox, storage]
+      use_default_app_name:
+        description: Use the repository name as the CapRover app name
+        required: false
+        type: boolean
+        default: true
+      custom_app_name:
+        description: Custom CapRover app name (if not using the repository name)
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    uses: ultra-mega-apps/workflows-public/.github/workflows/caprover_deployment.yaml@main
+    with:
+      branch: \${{ inputs.branch }}
+      server: \${{ inputs.server }}
+      use_default_app_name: \${{ inputs.use_default_app_name }}
+      custom_app_name: \${{ inputs.custom_app_name }}
+    secrets: inherit"
+
+write_file "${MANUAL_WORKFLOW}" \
+	"name: Manual CapRover Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      caprover_host:
+        description: CapRover server host URL
+        required: true
+        type: string
+      caprover_password:
+        description: CapRover app token/password
+        required: true
+        type: string
+      app_name:
+        description: CapRover app name
+        required: true
+        type: string
+      branch:
+        description: Git branch to deploy
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    uses: ultra-mega-apps/workflows-public/.github/workflows/manual_caprover_deployment.yaml@main
+    with:
+      caprover_host: \${{ inputs.caprover_host }}
+      caprover_password: \${{ inputs.caprover_password }}
+      app_name: \${{ inputs.app_name }}
+      branch: \${{ inputs.branch }}
+"
+
+echo "Done. Review the generated files and adjust branch/server options as needed."
