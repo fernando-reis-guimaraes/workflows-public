@@ -1,0 +1,67 @@
+name: CapRover Deploy Reusable
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: Git branch to deploy
+        required: true
+        type: string
+      server:
+        description: Environment to deploy
+        required: true
+        type: string
+      use_default_app_name:
+        description: Use repository name as CapRover app name
+        required: false
+        type: boolean
+        default: true
+      custom_app_name:
+        description: Custom CapRover app name
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      REPOSITORY_NAME: ${{ github.repository }}
+      FRGINBOX_CAPROVER_URL: ${{ vars.FRGINBOX_CAPROVER_URL }}
+      STORAGE_CAPROVER_URL: ${{ vars.STORAGE_CAPROVER_URL }}
+      FRGINBOX_CAPROVER_PASSWORD: ${{ secrets.FRGINBOX_CAPROVER_PASSWORD }}
+      STORAGE_CAPROVER_PASSWORD: ${{ secrets.STORAGE_CAPROVER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Deploy
+        run: |
+          SERVER_KEY=$(echo "${{ inputs.server }}" | tr '[:lower:]-' '[:upper:]_')
+          CAPROVER_URL_VARIABLE_NAME="${SERVER_KEY}_CAPROVER_URL"
+          CAPROVER_PASSWORD_VARIABLE_NAME="${SERVER_KEY}_CAPROVER_PASSWORD"
+
+          CAPROVER_URL="${!CAPROVER_URL_VARIABLE_NAME}"
+          CAPROVER_PASSWORD="${!CAPROVER_PASSWORD_VARIABLE_NAME}"
+
+          if [[ -z "$CAPROVER_URL" || -z "$CAPROVER_PASSWORD" ]]; then
+            echo "Server '${{ inputs.server }}' is missing CapRover configuration." >&2
+            exit 1
+          fi
+
+          if [[ "${{ inputs.use_default_app_name }}" == "true" ]]; then
+            CAPROVER_APP_NAME="${REPOSITORY_NAME##*/}"
+          else
+            CAPROVER_APP_NAME="${{ inputs.custom_app_name }}"
+          fi
+
+          if [[ -z "$CAPROVER_APP_NAME" ]]; then
+            echo "custom_app_name is required when use_default_app_name is false." >&2
+            exit 1
+          fi
+
+          npx --yes caprover deploy \
+            -u "$CAPROVER_URL" \
+            -p "$CAPROVER_PASSWORD" \
+            -a "$CAPROVER_APP_NAME" \
+            -b "${{ inputs.branch }}"
