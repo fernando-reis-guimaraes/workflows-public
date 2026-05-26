@@ -104,7 +104,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Securel  Extract and Mask Password
+      - name: Secure Extract and Mask Password
         run: |
           # 1. Read the input directly from the event payload JSON
           # This prevents GitHub from rendering the secret in the script or env logs.

@@ -34,15 +34,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Securel  Extract and Mask Password
+      - name: Secure Extract and Mask Password
         run: |
           # 1. Read the input directly from the event payload JSON
           # This prevents GitHub from rendering the secret in the script or env logs.
           RAW_PASSWORD=$(jq -r '.inputs.caprover_password' $GITHUB_EVENT_PATH)
-          
+
           # 2. Mask it dynamically
           echo "::add-mask::$RAW_PASSWORD"
-          
+
           # 3. Export to global env for subsequent steps
           echo "CAPROVER_PASSWORD=$RAW_PASSWORD" >> $GITHUB_ENV
       - uses: actions/checkout@v4
